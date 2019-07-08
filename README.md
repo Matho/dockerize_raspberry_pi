@@ -417,6 +417,11 @@ done
 
 mkdir -p /app/shared/nginx/cache/dragonfly
 ```
+The created bash scripts needs to have execute permission, so do:
+```
+chmod +x bin/run.docker.sh
+chmod +x bin/run.symlinks.docker.sh
+```
 
 Modify `config/database.yml` to: 
 ```
