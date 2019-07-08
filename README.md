@@ -751,4 +751,117 @@ rsync -avz -e "ssh -p 7777" user@yourserverdomain.eu:/home/user/www/shared/syste
 ```
 This will download your images.
 
-And it is all! Enjoy running your own server!
+## Files backuping
+
+You should backup your data! See this answer at https://raspberrypi.stackexchange.com/questions/5427/can-a-raspberry-pi-be-used-to-create-a-backup-of-itself/28087#28087
+Create folder:
+> mkdir ~/backuping
+
+Put slightly changed backuping script to `backup_script.sh`
+```
+#!/bin/bash
+# script to synchronise Pi files to backup
+BACKUP_MOUNTED=$(cat '/proc/mounts' | awk '/pi_backup/' | grep "rw" | wc -l)
+if [ "$BACKUP_MOUNTED" -eq 1 ]; then
+    echo $BACKUP_MOUNTED
+    echo "Commencing Backup"
+    rsync -avH --delete-during --delete-excluded --exclude-from=/home/pi/backuping/rsync-exclude.txt / /media/pi/pi_backup/
+else
+    echo "Backup drive not available or not writable"
+fi
+```
+
+Mark it executable:
+```
+chmod +x backup_script.sh
+
+```
+
+Create `/home/pi/backuping/rsync-exclude.txt` :
+```
+/proc/*
+/sys/*
+/dev/*
+/boot/*
+/tmp/*
+/run/*
+/mnt/*
+
+.Trashes
+._.Trashes
+.fseventsd
+.Spotlight-V100
+.DS_Store
+.AppleDesktop
+.AppleDB
+Network Trash Folder
+Temporary Items
+
+.bash_history
+/etc/fake-hwclock.data
+/var/lib/rpimonitor/stat/
+```
+
+
+Mark the USB device with name `pi_backup` and insert into rpi. It will be auto mounted at `/media/pi/pi_backup/
+Run the script. It wil take some time. Stop it and set the crontab. (I have used ext4 as filesystem)
+
+Run `crontab -e` and select `vim.tiny` editor.
+Add new crontab:
+```
+0 2 * * 6 /home/pi/backuping/backup_script.sh
+0 2 * * 1 /home/pi/backuping/backup_script.sh
+```
+This should run every Friday and Monday at 2am.
+
+## Postgres backuping
+You have backup for all files, but it is good to have also database backups (duplicated). 
+
+Create `~/.pgpass` file to passwordless authentification from your terminal.
+Insert code:
+```
+localhost:5432:*:postgres:your_password
+```
+Set chmod 
+```
+chmod 600 ~/.pgpass
+```
+
+
+Create file ` vim.tiny postgres_backup.sh` with content
+```
+#!/bin/bash
+# A simple script to perform postgres db backup.
+
+DATE=$(date +"%Y%m%d%H%M")
+PGPATH=/usr/bin/
+mkdir -p /home/pi/backuping/postgres_backups
+cd /home/pi/backuping/postgres_backups
+
+
+$PGPATH/pg_dumpall -U postgres -h localhost -p 5432 --file=${DATE}_pg_cluster.tar
+
+gzip ${DATE}_pg_cluster.tar
+
+# Cleanup configuration backups older than 30 days. 
+
+find /home/pi/backuping/postgres_backups -name "*_pg_cluster.tar.gz" -mtime +30 -type f -delete
+```
+
+Mark it executable:
+```
+chmod +x postgres_backup.sh
+
+```
+
+Run it or set it to cron:
+```
+crontab -e
+```
+
+Run it every day at 3am:
+```
+0 3 * * * /home/pi/backuping/postgres_backup.sh
+```
+
+And it is all for now!
