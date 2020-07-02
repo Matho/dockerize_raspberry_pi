@@ -865,3 +865,11 @@ Run it every day at 3am:
 ```
 
 And it is all for now!
+
+## Rapsberry image building on x86 architecture [2.7.2020]
+I have found, that docker is able to run and build arm image on x86 arch via qemu.
+All I need to install on my x86 Ubuntu is
+```
+sudo apt-get install qemu qemu-user qemu-user-static
+```
+And it works! You no more need to build image on rapsberry pi!
